@@ -13,18 +13,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Fetch puzzle
         run: |
           curl -s https://lichess.org/api/puzzle/next > puzzle.json
-          cat puzzle.json | jq -r '.game.fen' > puzzles.txt
+          cat puzzle.json
+
+      - name: Extract FEN (robust)
+        run: |
+          FEN=$(jq -r '.game.fen // .fen // empty' puzzle.json)
+          echo "FEN: $FEN"
+
+          if [ -z "$FEN" ]; then
+            echo "FEN extraction failed"
+            exit 1
+          fi
+
+          echo "$FEN" > puzzles.txt
+
+      - name: Show file content
+        run: |
+          echo "---- puzzles.txt ----"
+          cat puzzles.txt
 
       - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add puzzles.txt
-          git commit -m "update puzzles" || echo "no changes"
+          git commit -m "update puzzles $(date)" || echo "no changes"
           git push
