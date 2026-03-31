@@ -1,0 +1,26 @@
+name: Update Chess Puzzles
+
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Fetch puzzle
+        run: |
+          curl -s https://lichess.org/api/puzzle/next > puzzle.json
+          cat puzzle.json | jq -r '.game.fen' > puzzles.txt
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add puzzles.txt
+          git commit -m "update puzzles" || echo "no change"
+          git push
