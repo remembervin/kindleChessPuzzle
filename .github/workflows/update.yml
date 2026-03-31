@@ -1,46 +1,24 @@
-name: Update Chess Puzzles
+- name: Fetch and extract puzzles
+  run: |
+    > puzzles.txt
 
-on:
-  schedule:
-    - cron: "0 */12 * * *"
-  workflow_dispatch:
+    for i in {1..10}
+    do
+      RESPONSE=$(curl -s https://lichess.org/api/puzzle/next)
 
-permissions:
-  contents: write
+      # Try multiple possible paths
+      FEN=$(echo "$RESPONSE" | jq -r '.game.fen // .fen // empty')
 
-jobs:
-  update:
-    runs-on: ubuntu-latest
+      # Fallback: extract from PGN if needed
+      if [ -z "$FEN" ]; then
+        FEN=$(echo "$RESPONSE" | jq -r '.game.pgn' | grep -o 'FEN "[^"]*"' | cut -d'"' -f2)
+      fi
 
-    steps:
-      - uses: actions/checkout@v4
+      # Only append valid FEN
+      if [ ! -z "$FEN" ]; then
+        echo "$FEN" >> puzzles.txt
+      fi
+    done
 
-      - name: Fetch puzzle
-        run: |
-          curl -s https://lichess.org/api/puzzle/next > puzzle.json
-          cat puzzle.json
-
-      - name: Extract FEN (robust)
-        run: |
-          FEN=$(jq -r '.game.fen // .fen // empty' puzzle.json)
-          echo "FEN: $FEN"
-
-          if [ -z "$FEN" ]; then
-            echo "FEN extraction failed"
-            exit 1
-          fi
-
-          echo "$FEN" > puzzles.txt
-
-      - name: Show file content
-        run: |
-          echo "---- puzzles.txt ----"
-          cat puzzles.txt
-
-      - name: Commit & push
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add puzzles.txt
-          git commit -m "update puzzles $(date)" || echo "no changes"
-          git push
+    echo "Generated puzzles:"
+    cat puzzles.txt
