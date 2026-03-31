@@ -1,24 +1,54 @@
-- name: Fetch and extract puzzles
-  run: |
-    > puzzles.txt
+name: Update Chess Puzzles
 
-    for i in {1..10}
-    do
-      RESPONSE=$(curl -s https://lichess.org/api/puzzle/next)
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
 
-      # Try multiple possible paths
-      FEN=$(echo "$RESPONSE" | jq -r '.game.fen // .fen // empty')
+permissions:
+  contents: write
 
-      # Fallback: extract from PGN if needed
-      if [ -z "$FEN" ]; then
-        FEN=$(echo "$RESPONSE" | jq -r '.game.pgn' | grep -o 'FEN "[^"]*"' | cut -d'"' -f2)
-      fi
+jobs:
+  update:
+    runs-on: ubuntu-latest
 
-      # Only append valid FEN
-      if [ ! -z "$FEN" ]; then
-        echo "$FEN" >> puzzles.txt
-      fi
-    done
+    steps:
+      - uses: actions/checkout@v4
 
-    echo "Generated puzzles:"
-    cat puzzles.txt
+      - name: Fetch and extract puzzles
+        run: |
+          > puzzles.txt
+      
+          for i in {1..10}
+          do
+            RESPONSE=$(curl -s https://lichess.org/api/puzzle/next)
+      
+            # Try multiple possible paths
+            FEN=$(echo "$RESPONSE" | jq -r '.game.fen // .fen // empty')
+      
+            # Fallback: extract from PGN if needed
+            if [ -z "$FEN" ]; then
+              FEN=$(echo "$RESPONSE" | jq -r '.game.pgn' | grep -o 'FEN "[^"]*"' | cut -d'"' -f2)
+            fi
+      
+            # Only append valid FEN
+            if [ ! -z "$FEN" ]; then
+              echo "$FEN" >> puzzles.txt
+            fi
+          done
+      
+          echo "Generated puzzles:"
+          cat puzzles.txt
+      
+            - name: Show file content
+              run: |
+                echo "---- puzzles.txt ----"
+                cat puzzles.txt
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add puzzles.txt
+          git commit -m "update puzzles $(date)" || echo "no changes"
+          git push
