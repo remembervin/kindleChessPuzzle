@@ -15,35 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch and extract puzzles
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fetch puzzles (PGN → simple FEN substitute)
         run: |
           > puzzles.txt
-      
+
           for i in {1..10}
           do
             RESPONSE=$(curl -s https://lichess.org/api/puzzle/next)
-      
-            # Try multiple possible paths
-            FEN=$(echo "$RESPONSE" | jq -r '.game.fen // .fen // empty')
-      
-            # Fallback: extract from PGN if needed
-            if [ -z "$FEN" ]; then
-              FEN=$(echo "$RESPONSE" | jq -r '.game.pgn' | grep -o 'FEN "[^"]*"' | cut -d'"' -f2)
-            fi
-      
-            # Only append valid FEN
-            if [ ! -z "$FEN" ]; then
-              echo "$FEN" >> puzzles.txt
-            fi
+
+            # Extract PGN moves
+            PGN=$(echo "$RESPONSE" | jq -r '.game.pgn')
+
+            # VERY IMPORTANT:
+            # We store PGN instead of FEN (Kindle will replay moves)
+            echo "$PGN" >> puzzles.txt
           done
-      
-          echo "Generated puzzles:"
+
+          echo "Saved puzzles:"
           cat puzzles.txt
-      
-            - name: Show file content
-              run: |
-                echo "---- puzzles.txt ----"
-                cat puzzles.txt
 
       - name: Commit & push
         run: |
