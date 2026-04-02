@@ -18,22 +18,32 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Fetch puzzles (PGN → simple FEN substitute)
+      - name: Fetch puzzles with theme
         run: |
           > puzzles.txt
-
+      
           for i in {1..10}
           do
             RESPONSE=$(curl -s https://lichess.org/api/puzzle/next)
-
-            # Extract PGN moves
+      
             PGN=$(echo "$RESPONSE" | jq -r '.game.pgn')
-
-            # VERY IMPORTANT:
-            # We store PGN instead of FEN (Kindle will replay moves)
-            echo "$PGN" >> puzzles.txt
+      
+            # Extract mate theme
+            THEME=$(echo "$RESPONSE" | jq -r '.puzzle.themes[]' | grep -i mate | head -n1)
+      
+            # Format theme
+            if [ ! -z "$THEME" ]; then
+              GOAL=$(echo $THEME | sed 's/mateIn/Mate in /')
+            else
+              GOAL=""
+            fi
+      
+            if [ ! -z "$GOAL" ]; then
+              echo "$GOAL|$PGN" >> puzzles.txt
+            else
+              echo "$PGN" >> puzzles.txt
+            fi
           done
-
           echo "Saved puzzles:"
           cat puzzles.txt
 
