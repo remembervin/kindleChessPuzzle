@@ -278,6 +278,15 @@ function applyPGNMove(move){
   // Capture
   const isCapture = move.includes('x');
   move = move.replace('x','');
+  
+  // ---------------- PROMOTION ----------------
+	let promotionPiece = null;
+
+	if(move.includes('=')){
+	  const parts = move.split('=');
+	  move = parts[0];               // e.g. "a1"
+	  promotionPiece = parts[1].toLowerCase(); // "q"
+	}
 
   // Extract disambiguation
   if(move.length === 3){
@@ -318,9 +327,17 @@ function applyPGNMove(move){
     }
   }
 
-  if(candidates.length === 1){
+  if(candidates.length >= 1){
     const from = candidates[0];
-    board[to.r][to.c] = board[from.r][from.c];
+	let piece = board[from.r][from.c];
+
+	if(promotionPiece){
+	  piece = (turn==='white') ? promotionPiece.toUpperCase() : promotionPiece;
+	}
+
+	board[to.r][to.c] = piece;
+	board[from.r][from.c] = '';	
+	
     board[from.r][from.c] = '';
     turn = (turn==='white')?'black':'white';
   }
@@ -438,7 +455,7 @@ function draw(){
 	  msg = sideText + " | " + puzzleGoal;
 	}
 
-  // if(!setupMode && isCheck(turn)) msg="Check! "+msg;
+  if(!setupMode){
   
 	if(isCheckmate(turn)){
 	  msg = "Checkmate! " + (turn==='white'?'Black':'White') + " wins";
@@ -450,6 +467,7 @@ function draw(){
 	}
 	else if(isCheck(turn)){
 	  msg = "Check! " + msg;
+	}
 	}
 
   document.getElementById('info').textContent=msg;
