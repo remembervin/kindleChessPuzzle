@@ -18,7 +18,7 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Fetch puzzles with theme
+      - name: Fetch puzzles with solution
         run: |
           > puzzles.txt
       
@@ -28,21 +28,16 @@ jobs:
       
             PGN=$(echo "$RESPONSE" | jq -r '.game.pgn')
       
-            # Extract mate theme
             THEME=$(echo "$RESPONSE" | jq -r '.puzzle.themes[]' | grep -i mate | head -n1)
+            SOL=$(echo "$RESPONSE" | jq -r '.puzzle.solution | join(" ")')
       
-            # Format theme
             if [ ! -z "$THEME" ]; then
               GOAL=$(echo $THEME | sed 's/mateIn/Mate in /')
             else
               GOAL=""
             fi
       
-            if [ ! -z "$GOAL" ]; then
-              echo "$GOAL|$PGN" >> puzzles.txt
-            else
-              echo "$PGN" >> puzzles.txt
-            fi
+            echo "$GOAL|$PGN|$SOL" >> puzzles.txt
           done
           echo "Saved puzzles:"
           cat puzzles.txt
