@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kindle Chess Puzzle</title>
+<title>Vins Chess Puzzle Lite</title>
 
 <style>
 body { max-width:720px; margin:0 auto; font-family:sans-serif; text-align:center; }
@@ -46,7 +46,7 @@ button { margin:4px; font-size:16px; }
 
 <body>
 
-<h2>Kindle Chess Puzzle</h2>
+<h2>Vins Chess Puzzle Lite</h2>
 <div id="info">Setup Mode</div>
 <div id="board"></div>
 
@@ -118,7 +118,7 @@ button { margin:4px; font-size:16px; }
     gap:6px;
   ">
     <button onclick="clearSquare()">Clear</button>
-    <button onclick="clearBoard()">Clr Board</button>
+    <button onclick="clearBoard()">Clear Board</button>
 
     <button onclick="setTurn('white')">WTP</button>
     <button onclick="setTurn('black')">BTP</button>
@@ -295,7 +295,7 @@ function loadPGN(){
 
 	setupMode = false;
 
-  document.getElementById('setupControls').style.display='none';
+   
   document.getElementById('playControls').style.display='block';
 
 	initialBoard = JSON.parse(JSON.stringify(board));
@@ -419,7 +419,6 @@ function doneSetup(){
   setupMode = false;
   moved = {};
 
-  document.getElementById('setupControls').style.display='none';
   document.getElementById('playControls').style.display='block';
 
   // SAVE puzzle snapshot
@@ -554,22 +553,36 @@ function draw(){
 
 	let sideText = (turn === 'white') ? "White to play" : "Black to play";
 
-	let msg = setupMode ? 
-	  "Setup Mode ("+turn+")" : 
-	  sideText;
-	  
-	if(puzzleCompleted){
-	  document.getElementById('info').textContent = "Puzzle Completed!";
-	  return;
-	}	  
+	let msg;
 
-	if(puzzleGoal){
-	  msg = sideText + " | " + puzzleGoal;
-	} else {
-	  msg = sideText + " & win";
+	// PRIORITY 1 — Setup mode
+	if(setupMode){
+	  msg = "Load new puzzle OR Set the board manually !";
 	}
 
-  if(!setupMode){  
+	// PRIORITY 2 — Puzzle completed
+	else if(puzzleCompleted){
+	  document.getElementById('info').textContent = "Puzzle Completed!";
+	  return;
+	}
+
+	// PRIORITY 3 — Puzzle loaded
+	else if(initialBoard){
+
+	  if(puzzleGoal){
+		msg = sideText + " | " + puzzleGoal;
+	  } else {
+		msg = sideText + " & win";
+	  }
+
+	}
+
+	// PRIORITY 4 — Default fallback
+	else {
+	  msg = sideText;
+	}
+
+  if(!setupMode && !puzzleCompleted && moveHistory.length > 0){  
 	if(isCheckmate(turn)){
 
 	  msg = "Checkmate! " + (turn==='white'?'Black':'White') + " wins";
@@ -1189,7 +1202,6 @@ function backToSetup(){
 
   setupMode = true;
 
-  document.getElementById('setupControls').style.display='block';
   document.getElementById('playControls').style.display='none';
 
   selected = null;
