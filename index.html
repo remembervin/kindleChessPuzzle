@@ -754,7 +754,14 @@ case 'k':
   // ---------------- CASTLING ----------------
   if(dr===0 && Math.abs(dc)===2){
 
-    const row = from.r;
+	  // ONLY allow from starting rank
+	  if((piece === 'K' && from.r !== 7) ||
+		 (piece === 'k' && from.r !== 0)){
+		return false;
+	  }
+	  if(from.c !== 4) return false;
+
+	  const row = from.r;
 
     // king side
     if(dc===2){
