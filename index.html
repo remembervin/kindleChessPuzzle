@@ -24,6 +24,11 @@ body { max-width:720px; margin:0 auto; font-family:sans-serif; text-align:center
   font-size:38px;
 }
 
+.lastmove { outline:3px solid #444; }
+.lastmoveTo { outline:4px solid black; }
+
+.checkmateGlow { box-shadow:0 0 12px 4px black inset; }
+.checkingPiece { outline:3px dotted black; }
 .light{background:#eee;}
 .dark{background:#aaa;}
 
@@ -127,6 +132,10 @@ let solutionMode = false;
 let puzzleList = [];
 let puzzleIndex = 0;
 
+let lastMove = null;
+let checkmateSquare = null;
+let checkingPieceSquare = null;
+
 let moveHistory = [];
 let historyIndex = -1;
 
@@ -185,6 +194,10 @@ function loadNextPuzzle(){
 
 function loadPGN(){
 
+	lastMove = null;
+	checkmateSquare = null;
+	checkingPieceSquare = null;
+
 	const raw = document.getElementById('pgnInput').value.trim();
 	if(!raw) return;
 
@@ -217,27 +230,27 @@ function loadPGN(){
     applyPGNMove(move);
   }
 
-// RESET STATE (add here)
-solutionMode = false;
-solutionIndex = 0;
+	// RESET STATE (add here)
+	solutionMode = false;
+	solutionIndex = 0;
 
-selected = null;
-pendingPromotion = null;
-enPassant = null;
-gameOver = false;
+	selected = null;
+	pendingPromotion = null;
+	enPassant = null;
+	gameOver = false;
 
-setupMode = false;
+	setupMode = false;
 
   document.getElementById('setupControls').style.display='none';
   document.getElementById('playControls').style.display='block';
 
-initialBoard = JSON.parse(JSON.stringify(board));
-initialTurn = turn;
+	initialBoard = JSON.parse(JSON.stringify(board));
+	initialTurn = turn;
 
-draw();
+	draw();
 
-  moveHistory = [JSON.parse(JSON.stringify(board))];
-  historyIndex = 0;
+	moveHistory = [JSON.parse(JSON.stringify(board))];
+	historyIndex = 0;
 }
 
 function castle(side){
@@ -362,22 +375,43 @@ function doneSetup(){
   pendingPromotion = null;
   enPassant = null;
   gameOver = false;
+  
+  moveHistory = [JSON.parse(JSON.stringify(board))];
+  historyIndex = 0;
 
   draw();
 }
 
 function prevMove(){
+
   if(historyIndex > 0){
+
     historyIndex--;
+
     board = JSON.parse(JSON.stringify(moveHistory[historyIndex]));
+
+    // reset highlights
+    lastMove = null;
+    checkmateSquare = null;
+    checkingPieceSquare = null;
+
     draw();
   }
 }
 
 function nextMove(){
-  if(historyIndex < moveHistory.length-1){
+
+  if(historyIndex < moveHistory.length - 1){
+
     historyIndex++;
+
     board = JSON.parse(JSON.stringify(moveHistory[historyIndex]));
+
+    // reset highlights
+    lastMove = null;
+    checkmateSquare = null;
+    checkingPieceSquare = null;
+
     draw();
   }
 }
@@ -432,6 +466,24 @@ function draw(){
       if(selected && selected.r===r && selected.c===c){
         sq.className+=' selected';
       }
+	  
+	  // LAST MOVE highlight
+	if(lastMove){
+	  if(lastMove.from.r===r && lastMove.from.c===c){
+		sq.className += ' lastmove';
+	  }
+	  if(lastMove.to.r===r && lastMove.to.c===c){
+		sq.className += ' lastmoveTo';
+	  }
+	}
+	
+	if(checkmateSquare && checkmateSquare.r===r && checkmateSquare.c===c){
+	  sq.className += ' checkmateGlow';
+	}
+
+	if(checkingPieceSquare && checkingPieceSquare.r===r && checkingPieceSquare.c===c){
+	  sq.className += ' checkingPiece';
+	}
 
       for(let m of legalMoves){
         if(m.r===r && m.c===c){
@@ -455,11 +507,26 @@ function draw(){
 	  msg = sideText + " | " + puzzleGoal;
 	}
 
-  if(!setupMode){
-  
+  if(!setupMode){  
 	if(isCheckmate(turn)){
+
 	  msg = "Checkmate! " + (turn==='white'?'Black':'White') + " wins";
 	  gameOver = true;
+
+	  // SET HIGHLIGHTS HERE (robust)
+	  if(!checkmateSquare){
+
+		for(let r=0;r<8;r++){
+		  for(let c=0;c<8;c++){
+			if(board[r][c]===(turn==='white'?'K':'k')){
+			  checkmateSquare = {r,c};
+			}
+		  }
+		}
+
+		const attacker = findCheckingPiece(turn);
+		if(attacker) checkingPieceSquare = attacker;
+	  }
 	}
 	else if(isStalemate(turn)){
 	  msg = "Stalemate! Draw";
@@ -484,41 +551,75 @@ function playSolutionMove(){
     return;
   }
 
-  const from = {
-    c: move.charCodeAt(0)-97,
-    r: 8 - parseInt(move[1])
-  };
+	const fromGuess = {
+	  c: move.charCodeAt(0)-97,
+	  r: 8 - parseInt(move[1])
+	}
 
-  const to = {
-    c: move.charCodeAt(2)-97,
-    r: 8 - parseInt(move[3])
-  };
+	const to = {
+	  c: move.charCodeAt(2)-97,
+	  r: 8 - parseInt(move[3])
+	}
 
-  if(!board[from.r][from.c]){
-    console.log("No piece at:", move);
-    return;
-  }
+	// 🔍 Try direct match first
+	let from = null;
 
-  makeMove(from,to);
+	if(board[fromGuess.r][fromGuess.c]){
+	  from = fromGuess;
+	} 
+	else if(solutionMode){
 
-  solutionIndex++;
-  turn = (turn==='white')?'black':'white';
+	  // 🔍 fallback: find any valid piece that can make this move
+	  for(let r=0;r<8;r++){
+		for(let c=0;c<8;c++){
 
-  draw();
+		  const p = board[r][c];
+		  if(!p) continue;
 
-  setTimeout(playSolutionMove, 2000);
+		  if(turn==='white' && p!==p.toUpperCase()) continue;
+		  if(turn==='black' && p!==p.toLowerCase()) continue;
+
+		  if(isValidMoveStrict({r,c}, to) && isLegalMove({r,c}, to)){
+			from = {r,c};
+			break;
+		  }
+		}
+		if(from) break;
+	  }
+	}
+
+	if(!from){
+	  console.log("Could not resolve move:", move);
+	  return;
+	}
+
+
+	makeMove(from,to);
+
+	turn = (turn==='white')?'black':'white';
+
+	updateCheckHighlights(true);
+
+	solutionIndex++;
+	if(solutionIndex >= solutionMoves.length){
+	  solutionMode = false;
+	  draw();
+	  return;
+	}
+	
+	draw();
+    setTimeout(playSolutionMove, 2000);
 }
 
 function startSolutionMode(){
 
   if(!initialBoard) return;
-
+  solutionMode = true;
   // Reset to original puzzle
   board = JSON.parse(JSON.stringify(initialBoard));
   turn = initialTurn;
 
-  solutionMode = true;
-  solutionIndex = 0;
+   solutionIndex = 0;
 
   draw();
 
@@ -543,8 +644,15 @@ function handleTap(r,c){
     if(piece && isOwnPiece(piece)) selected={r,c};
   } else {
     if(isValidMoveStrict(selected,{r,c}) && isLegalMove(selected,{r,c})){
-      makeMove(selected,{r,c});
-      if(!pendingPromotion) turn=(turn==='white')?'black':'white';
+	makeMove(selected,{r,c});
+
+	if(!pendingPromotion){
+
+	  turn = (turn==='white')?'black':'white';
+
+	  // reset highlights
+	updateCheckHighlights();
+	}
     }
     selected=null;
   }
@@ -638,11 +746,80 @@ function isValidMoveStrict(from,to){
              (Math.abs(dr)===1 && Math.abs(dc)===2);
 
     // ---------------- KING ----------------
-    case 'k':
-      return Math.abs(dr)<=1 && Math.abs(dc)<=1;
+case 'k':
+
+  // normal king move
+  if(Math.abs(dr)<=1 && Math.abs(dc)<=1) return true;
+
+  // ---------------- CASTLING ----------------
+  if(dr===0 && Math.abs(dc)===2){
+
+    const row = from.r;
+
+    // king side
+    if(dc===2){
+
+      if(board[row][5] || board[row][6]) return false;
+
+      if(isSquareAttacked(row,4,turn==='white'?'black':'white')) return false;
+      if(isSquareAttacked(row,5,turn==='white'?'black':'white')) return false;
+      if(isSquareAttacked(row,6,turn==='white'?'black':'white')) return false;
+
+      return true;
+    }
+
+    // queen side
+    if(dc===-2){
+
+      if(board[row][1] || board[row][2] || board[row][3]) return false;
+
+      if(isSquareAttacked(row,4,turn==='white'?'black':'white')) return false;
+      if(isSquareAttacked(row,3,turn==='white'?'black':'white')) return false;
+      if(isSquareAttacked(row,2,turn==='white'?'black':'white')) return false;
+
+      return true;
+    }
   }
 
   return false;
+
+
+  }
+
+  return false;
+}
+
+function findCheckingPiece(color){
+
+  const opponent = (color==='white') ? 'black' : 'white';
+
+  let king;
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      if(board[r][c]===(color==='white'?'K':'k')){
+        king = {r,c};
+      }
+    }
+  }
+
+  if(!king) return null;
+
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+
+      const p = board[r][c];
+      if(!p) continue;
+
+      if((opponent==='white' && p!==p.toUpperCase()) ||
+         (opponent==='black' && p!==p.toLowerCase())) continue;
+
+      if(isValidMoveStrict({r,c}, king)){
+        return {r,c};
+      }
+    }
+  }
+
+  return null;
 }
 
 function isValidMove(from,to){
@@ -743,7 +920,7 @@ function isCheck(color,b=board){
 	return isSquareAttacked(king.r,king.c,color==='white'?'black':'white',b);
 }
 
-function isSquareAttacked(r,c,byColor,b){
+function isSquareAttacked(r,c,byColor,b=board){
   for(let i=0;i<8;i++){
     for(let j=0;j<8;j++){
       const p=b[i][j]; if(!p) continue;
@@ -795,8 +972,52 @@ function pathClear(r1,c1,r2,c2,b=board){
   return true;
 }
 
+function updateCheckHighlights(isSimulation=false){
+
+  checkmateSquare = null;
+  checkingPieceSquare = null;
+
+  if(isCheckmate(turn)){
+
+    // ❗ ONLY set gameOver if NOT simulation
+    if(!isSimulation){
+      gameOver = true;
+    }
+
+    for(let r=0;r<8;r++){
+      for(let c=0;c<8;c++){
+        if(board[r][c]===(turn==='white'?'K':'k')){
+          checkmateSquare = {r,c};
+        }
+      }
+    }
+
+    const attacker = findCheckingPiece(turn);
+    if(attacker) checkingPieceSquare = attacker;
+  }
+  else if(isCheck(turn)){
+
+    const attacker = findCheckingPiece(turn);
+    if(attacker) checkingPieceSquare = attacker;
+  }
+}
+
 function makeMove(from,to){
   let piece=board[from.r][from.c];
+  
+  // ---------------- CASTLING EXECUTION ----------------
+	if(piece.toLowerCase()==='k' && Math.abs(to.c-from.c)===2){
+
+	  if(to.c===6){ // king side
+		board[from.r][5] = board[from.r][7];
+		board[from.r][7] = '';
+	  }
+
+	  if(to.c===2){ // queen side
+		board[from.r][3] = board[from.r][0];
+		board[from.r][0] = '';
+	  }
+	}
 
   if(piece.toLowerCase()==='p' && enPassant &&
      to.r===enPassant.r && to.c===enPassant.c){
@@ -805,6 +1026,12 @@ function makeMove(from,to){
 
   board[to.r][to.c]=piece;
   board[from.r][from.c]='';
+  
+  // Track last move
+	lastMove = {
+	  from: {r: from.r, c: from.c},
+	  to: {r: to.r, c: to.c}
+	};
 
   if(piece==='P' && to.r===0){ triggerPromotion(to,'white'); return; }
   if(piece==='p' && to.r===7){ triggerPromotion(to,'black'); return; }
@@ -857,6 +1084,9 @@ function resetPuzzle(){
   pendingPromotion = null;
   enPassant = null;
   gameOver = false;
+  lastMove = null;
+  checkmateSquare = null;
+  checkingPieceSquare = null;
 
   draw();
 }
