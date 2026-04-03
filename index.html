@@ -6,7 +6,7 @@
 <title>Vins Chess Puzzle Lite</title>
 
 <style>
-body { max-width:720px; margin:0 auto; font-family:sans-serif; text-align:center; }
+body { max-width:720px; margin:0 auto; padding:0; font-family:sans-serif; text-align:center; }
 
 #board {
   display:grid;
@@ -178,6 +178,7 @@ let gameOver=false;
 let solutionMoves = [];
 let solutionIndex = 0;
 let solutionMode = false;
+let puzzleStart = false;
 
 let puzzleList = [];
 let puzzleIndex = 0;
@@ -250,6 +251,7 @@ function loadPGN(){
 	checkmateSquare = null;
 	checkingPieceSquare = null;
 	puzzleCompleted = false;
+	puzzleStart = true;
 	moved = {};
 
 	const raw = document.getElementById('pgnInput').value.trim();
@@ -413,7 +415,7 @@ function applyPGNMove(move){
 /* SETUP */
 function selectPiece(p){ selectedPiece=p; }
 function setTurn(t){ turn=t; draw(); }
-function clearBoard(){ initEmptyBoard(); draw(); }
+function clearBoard(){ initEmptyBoard(); setupMode = true; draw(); }
 
 function doneSetup(){
   setupMode = false;
@@ -555,29 +557,31 @@ function draw(){
 
 	let msg;
 
-	// PRIORITY 1 — Setup mode
-	if(setupMode){
-	  msg = "Load new puzzle OR Set the board manually !";
+	// PRIORITY 1 — Puzzle completed
+	if(puzzleCompleted){
+	  msg = "Puzzle Completed!";
 	}
 
-	// PRIORITY 2 — Puzzle completed
-	else if(puzzleCompleted){
-	  document.getElementById('info').textContent = "Puzzle Completed!";
-	  return;
+	// PRIORITY 2 — Setup mode
+	else if(setupMode){
+	  msg = "Load Puzzle or Setup board manually !";
 	}
 
 	// PRIORITY 3 — Puzzle loaded
 	else if(initialBoard){
 
-	  if(puzzleGoal){
-		msg = sideText + " | " + puzzleGoal;
+	  if(puzzleStart){
+		if(puzzleGoal){
+		  msg = sideText + " | " + puzzleGoal;
+		} else {
+		  msg = sideText + " & win";
+		}
 	  } else {
-		msg = sideText + " & win";
+		msg = sideText;
 	  }
 
 	}
-
-	// PRIORITY 4 — Default fallback
+	// PRIORITY 4 — fallback
 	else {
 	  msg = sideText;
 	}
@@ -1102,6 +1106,7 @@ function updateCheckHighlights(isSimulation=false){
 function makeMove(from,to){
   let piece=board[from.r][from.c];
   moved[from.r + "_" + from.c] = true;
+  puzzleStart = false;
   
   // ---------------- CASTLING EXECUTION ----------------
 	if(piece.toLowerCase()==='k' && Math.abs(to.c-from.c)===2){
@@ -1177,6 +1182,7 @@ function resetPuzzle(){
 
   board = JSON.parse(JSON.stringify(initialBoard));
   turn = initialTurn;
+  puzzleStart = true;
 
   moved = {};
 
