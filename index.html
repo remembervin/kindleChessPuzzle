@@ -50,48 +50,102 @@ button { margin:4px; font-size:16px; }
 <div id="info">Setup Mode</div>
 <div id="board"></div>
 
-<button onclick="loadPuzzleFile()">Load Puzzles</button>
-<button onclick="loadNextPuzzle()">Next Puzzle</button>
+<div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:10px 0;
+">
 
-<button onclick="prevMove()">◀</button>
-<button onclick="nextMove()">▶</button>
+  <!-- LEFT GROUP -->
+  <div style="display:flex; gap:6px;">
+    <button onclick="loadPuzzleFile()">Load Puzzle</button>
+    <button onclick="loadNextPuzzle()">Next</button>
+  </div>
 
-<div style="margin-top:30px;">
-  <button onclick="startSolutionMode()">Show Solution</button>
+  <!-- CENTER GROUP -->
+  <div style="display:flex; gap:6px;">
+    <button onclick="prevMove()">◀</button>
+    <button onclick="nextMove()">▶</button>
+  </div>
+
+  <!-- RIGHT GROUP -->
+  <div style="display:flex; gap:6px;">
+    <button onclick="resetPuzzle()">Reset</button>
+    <button onclick="startSolutionMode()">💡</button>
+  </div>
+
 </div>
 
 <div id="promotion" style="display:none;"></div>
 
 <!-- SETUP -->
-<div id="setupControls" class="piecePicker">
-White:
-<button onclick="selectPiece('K')">♔</button>
-<button onclick="selectPiece('Q')">♕</button>
-<button onclick="selectPiece('R')">♖</button>
-<button onclick="selectPiece('B')">♗</button>
-<button onclick="selectPiece('N')">♘</button>
-<button onclick="selectPiece('P')">♙</button>
+<div style="
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  gap:10px;
+  margin:10px 0;
+">
 
-<br>Black:
-<button onclick="selectPiece('k')">♚</button>
-<button onclick="selectPiece('q')">♛</button>
-<button onclick="selectPiece('r')">♜</button>
-<button onclick="selectPiece('b')">♝</button>
-<button onclick="selectPiece('n')">♞</button>
-<button onclick="selectPiece('p')">♟</button>
+  <!-- LEFT: PIECE GRID -->
+  <div style="
+    display:grid;
+    grid-template-columns: repeat(6, 40px);
+    gap:6px;
+  ">
+    <!-- White -->
+    <button onclick="selectPiece('K')">♔</button>
+    <button onclick="selectPiece('Q')">♕</button>
+    <button onclick="selectPiece('R')">♖</button>
+    <button onclick="selectPiece('B')">♗</button>
+    <button onclick="selectPiece('N')">♘</button>
+    <button onclick="selectPiece('P')">♙</button>
 
-<br>
-<button onclick="selectPiece('')">❌ Clear</button>
-<br>
+    <!-- Black -->
+    <button onclick="selectPiece('k')">♚</button>
+    <button onclick="selectPiece('q')">♛</button>
+    <button onclick="selectPiece('r')">♜</button>
+    <button onclick="selectPiece('b')">♝</button>
+    <button onclick="selectPiece('n')">♞</button>
+    <button onclick="selectPiece('p')">♟</button>
+  </div>
 
-<button onclick="setTurn('white')">WTP</button>
-<button onclick="setTurn('black')">BTP</button>
-<button onclick="clearBoard()">Clear Board</button>
+  <!-- MIDDLE: CONTROL BUTTONS -->
+  <div style="
+    display:grid;
+    grid-template-columns: auto auto;
+    gap:6px;
+  ">
+    <button onclick="clearSquare()">Clear</button>
+    <button onclick="clearBoard()">Clr Board</button>
 
-<button onclick="doneSetup()">Done</button>
+    <button onclick="setTurn('white')">WTP</button>
+    <button onclick="setTurn('black')">BTP</button>
+  </div>
+
+  <!-- RIGHT: DONE (VERTICAL) -->
+  <div style="display:flex;">
+	<button style="
+	  padding:6px 4px;
+	  font-size:14px;
+	  height:100%;
+	  display:flex;
+	  flex-direction:column;
+	  justify-content:center;
+	  align-items:center;
+	  line-height:1.1;
+	" onclick="doneSetup()">
+
+	  <span>✔</span>
+	  <span>.</span>
+	  <span>GO</span>
+	</button>
+  </div>
+
 </div>
 
-<div style="margin-top:30px; padding-top:10px; border-top:1px solid #aaa;">
+<div style="margin-top:20px; padding-top:10px; border-top:1px solid #aaa;">
   <input id="pgnInput" placeholder="Paste PGN here" style="width:80%;">
   <br>
   <button onclick="loadPGN()">Load PGN Puzzle</button>
@@ -100,10 +154,6 @@ White:
 <!-- PLAY -->
 <div id="playControls" style="display:none;">
   <button onclick="flipPieces()">Flip</button>
-
-  <span style="margin-left:20px;">
-    <button onclick="resetPuzzle()">Reset</button>
-  </span>
 
   <span style="margin-left:20px;">
     <button onclick="backToSetup()">Edit Puzzle</button>
@@ -515,6 +565,8 @@ function draw(){
 
 	if(puzzleGoal){
 	  msg = sideText + " | " + puzzleGoal;
+	} else {
+	  msg = sideText + " & win";
 	}
 
   if(!setupMode){  
